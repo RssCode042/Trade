@@ -29,11 +29,13 @@ jobs:
           name: production-files
           path: ./dist
 
-  deploy:
+   deploy:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
 
     steps:
       - name: Download artifact
