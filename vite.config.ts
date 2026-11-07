@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/Trade/',
+    base: 'https://github.com/RssCode042/Trade/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
