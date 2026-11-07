@@ -44,7 +44,7 @@ jobs:
       - name: Инсталиране на Node.js среда (Setup Node.js 20)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Инсталиране на зависимости (Install dependencies)
