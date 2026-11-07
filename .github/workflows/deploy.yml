@@ -1,0 +1,128 @@
+name: Deploy ApexTrade Journal
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Изберете цел за деплой (Deployment target)'
+        required: false
+        default: 'github-pages'
+        type: choice
+        options:
+          - 'github-pages'
+          - 'build-only'
+
+# Прекратява предходни активни изпълнения на същия клон/PR за пестене на ресурси
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1. Проверка на кода, TypeScript компилация и билд на статичните активи
+  # --------------------------------------------------------------------------
+  build:
+    name: Lint, Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Изтегляне на хранилището (Checkout code)
+        uses: actions/checkout@v4
+
+      - name: Инсталиране на Node.js среда (Setup Node.js 20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Инсталиране на зависимости (Install dependencies)
+        run: npm ci || npm install
+
+      - name: Проверка за TypeScript грешки (Typecheck / Lint)
+        run: npm run lint
+
+      - name: Сглобяване на проекта (Build production bundle)
+        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_BASE_PATH: './'
+
+      - name: Качване на билд артефакта (Upload build artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-bundle
+          path: dist
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # 2. Автоматичен деплой към GitHub Pages
+  # --------------------------------------------------------------------------
+  deploy-github-pages:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event.inputs.deploy_target == 'github-pages')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Изтегляне на билд артефакта (Download build artifact)
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-bundle
+          path: dist
+
+      - name: Конфигуриране на GitHub Pages (Setup GitHub Pages)
+        uses: actions/configure-pages@v5
+
+      - name: Подготовка на Pages артефакт (Upload GitHub Pages artifact)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Финализиране на деплоя (Deploy to GitHub Pages)
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # --------------------------------------------------------------------------
+  # 3. Деплой към Firebase Hosting (при наличен secret FIREBASE_SERVICE_ACCOUNT)
+  # --------------------------------------------------------------------------
+  deploy-firebase:
+    name: Deploy to Firebase Hosting (Optional)
+    needs: build
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Изтегляне на хранилището (Checkout code)
+        uses: actions/checkout@v4
+
+      - name: Изтегляне на билд артефакта (Download build artifact)
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-bundle
+          path: dist
+
+      - name: Деплой във Firebase Hosting
+        if: env.FIREBASE_TOKEN != ''
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: live
+          projectId: gen-lang-client-0236154484
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
