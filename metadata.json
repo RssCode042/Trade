@@ -1,0 +1,6 @@
+{
+  "name": "ApexTrade Journal",
+  "description": "Професионален дневник за търговия с акции и криптовалути с котировки в реално време, управление на риска (R-Multiple, Open Risk, PnL) и експорт към Excel и Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
